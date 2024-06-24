@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+source ../secrets/env_var
+
+RANDO_HASH="cb21e16f" # for naming things uniquely
+REPO_ROOT=$(git rev-parse --show-toplevel)
+BUILD_DATA_PATH=${REPO_ROOT}/infrastructure/build_data
+BUILD_ARTIFACTS=${REPO_ROOT}/infrastructure/build_artifacts
+BUILD_ID=$(cat $BUILD_DATA_PATH/build_id)
+BUILD_MANIFEST=$(cat $BUILD_DATA_PATH/build_manifest)
+SHA=$(git rev-parse --short $(git rev-parse HEAD))
+REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+S3_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='S3::BucketForUploadsUsWest2-Name'].Value" --output text)
+BLOG_POST_IMAGE_GEN_ZIP_FILENAME=$(echo ${BUILD_MANIFEST} | jq -r '.blog_post_image_generator_application')
+BLOG_POST_IMAGE_GEN_S3_ZIP_PATH="${REPO_NAME}/${BLOG_POST_IMAGE_GEN_ZIP_FILENAME}"
+
+
+TEMPLATE_FILE="$BUILD_DATA_PATH/cloudformation.yaml"
+
+# create cloudformation.yaml
+python main.py $TEMPLATE_FILE $RANDO_HASH
+
+aws cloudformation deploy \
+  --stack-name HugoBotAutomation \
+  --template-file $TEMPLATE_FILE \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides BlogPostImageGeneratorS3ZipPath=$BLOG_POST_IMAGE_GEN_S3_ZIP_PATH \
+                        BucketForUploadsUsWest2=$S3_BUCKET
