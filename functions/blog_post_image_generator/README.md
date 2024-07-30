@@ -31,7 +31,7 @@ Expected SNS message format in payload:
 {
     "github": {
         "repository_name": "string",
-        "pull_request_number": "string"
+        "pull_request_number": number
     }
 }
 ```
