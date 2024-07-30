@@ -26,10 +26,12 @@ sequenceDiagram
     Lambda-->>GitHub: Update the pull request<br>with a commit that<br>has the updated `thumbnail`
 ```
 
-Processes SNS message with payload:
+Expected SNS message format in payload:
 ```json
 {
-  "repository_name": "owner_name/repo_name",
-  "pull_request_number": 11
+    "github": {
+        "repository_name": "string",
+        "pull_request_number": "string"
+    }
 }
 ```

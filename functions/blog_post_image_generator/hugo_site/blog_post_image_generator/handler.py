@@ -50,9 +50,9 @@ bedrock_client = boto3.client("bedrock-runtime")
 def lambda_handler(event, context):
     message_str = event.get("Records", [{}])[0].get("Sns", {}).get("Message", "")
     message = json.loads(json.loads(json.dumps(message_str)))
-    repo_name = message.get("repository_name", "")
+    repo_name = message.get("github", {}).get("repository_name", "")
     repo = github_client.get_repo(repo_name)
-    pull_request_number = message.get("pull_request_number", "")
+    pull_request_number = message.get("github", {}).get("pull_request_number", "")
     pull_request = repo.get_pull(pull_request_number)
     files_changed = pull_request.get_files()
     branch_name = pull_request.head.ref
