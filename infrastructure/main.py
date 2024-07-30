@@ -50,7 +50,7 @@ if __name__ == "__main__":
     main_template.add_output(
         Output(
             application_prefix + "ImageGeneratorTopic",
-            Export=Export(f"S3::{application_prefix}-SNSImageGeneratorTopic"),
+            Export=Export(f"{application_prefix}::SNS::ImageGenerator::Arn"),
             Description="SNS Topic to trigger the blog post image generator function",
             Value=Ref(main_template.resources["ImageGeneratorTopic"]),
         )
