@@ -1,4 +1,4 @@
-import hugo_site.blog_post_image_generator.front_matter_util.convert as convert
+import hugo_site.blog_post_image_generator.front_matter.convert as convert
 
 
 def files_with_empty_thumbnail(filtered_files, repo, pull_request):
