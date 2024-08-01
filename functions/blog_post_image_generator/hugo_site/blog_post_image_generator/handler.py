@@ -1,15 +1,17 @@
+"""Lambda function to generate images for blog posts."""
+
+import json
 import logging
 import os
 
 import boto3
 from botocore.exceptions import ClientError
-
-from github import GithubIntegration
 from github import Auth
+from github import GithubIntegration
 
-import hugo_site.blog_post_image_generator.aws.s3 as s3
-import hugo_site.blog_post_image_generator.front_matter_util.find as find
-import hugo_site.blog_post_image_generator.aws.bedrock as bedrock
+import hugo_site.blog_post_image_generator.app as app
+import hugo_site.blog_post_image_generator.slack.message as slack_message
+import hugo_site.blog_post_image_generator.slack.message_blocks as message_blocks
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOGGING_LEVEL", logging.INFO))
@@ -23,6 +25,9 @@ boto3_session = boto3.session.Session()
 ssm_client = boto3_session.client(service_name="ssm", region_name="us-west-2")
 s3_client = boto3_session.client(service_name="s3", region_name="us-west-2")
 images_bucket_name = os.getenv("WEBSITE_CDN_IMAGES_BUCKET", "smylee.com.assets")
+workflow_assets_bucket_name = os.getenv(
+    "WORKFLOW_ASSETS_BUCKET", "devworkflow-payload-storage-n567md2s"
+)
 
 try:
     app_parameters = ssm_client.get_parameters(
@@ -44,33 +49,49 @@ installation = github_integration.get_installations()[0]
 github_client = installation.get_github_for_installation()
 
 bedrock_client = boto3.client("bedrock-runtime")
+sns_client = boto3_session.client(service_name="sns", region_name="us-west-2")
 
 
 def lambda_handler(event, context):
-    # message_str = event.get("Records", [{}])[0].get("Sns", {}).get("Message", "")
-    # message = json.loads(json.loads(json.dumps(message_str)))
-    message = event
+    message_str = event.get("Records", [{}])[0].get("Sns", {}).get("Message", "")
+    message = json.loads(json.loads(json.dumps(message_str)))
     repo_name = message.get("github", {}).get("repository_name", "")
-    repo = github_client.get_repo(repo_name)
     pull_request_number = message.get("github", {}).get("pull_request_number", "")
-    pull_request = repo.get_pull(pull_request_number)
-    files_changed = pull_request.get_files()
-    branch_name = pull_request.head.ref
-    filtered_files = [file.filename for file in files_changed if "content/post" in file.filename]
-    files_with_empty_thumbnail = find.files_with_empty_thumbnail(filtered_files, repo, pull_request)
+    response_url = message.get("slack", {}).get("response_url", "")
 
-    # Generate image for files with empty thumbnail values and their title and description
-    for index, file_info in enumerate(files_with_empty_thumbnail):
-        filename = file_info["filename"]
-        title = file_info["title"]
-        description = file_info["description"]
-        logger.info(f"Filename: {filename}\nTitle: {title}\nDescription: {description}")
-        files_with_empty_thumbnail[index]["image"] = bedrock.generate_image(title, description, filename, bedrock_client, image_temp_directory, model_type)
+    # run the app
+    ctx = {
+        "github_client": github_client,
+        "bedrock_client": bedrock_client,
+        "s3_client": s3_client,
+        "images_bucket_name": images_bucket_name,
+    }
+    generated_images = app.run(
+        ctx, repo_name, pull_request_number, image_temp_directory, model_type
+    )
 
-    # Upload the entire temp directory to S3
-    for file_info in files_with_empty_thumbnail:
-        s3.upload(image_temp_directory, images_bucket_name, s3_client, file_info["image"])
-        cdn_path = f"{file_info.get('image', '')}"
-        logger.info(f"Image uploaded to S3: {cdn_path}")
-
-    return "done"
+    # construct and write message to file
+    slack_message_data = message_blocks.slack_app_header(
+        generated_images.get("url_to_pull_request"),
+        generated_images.get("pull_request_number"),
+        generated_images.get("repo_name"),
+    )
+    for generated_image in generated_images.get("posts"):
+        slack_message_data.append(
+            message_blocks.slack_section_header(generated_image.get("title"))
+        )
+        for generated_image_option in generated_image.get("options"):
+            slack_message_data.append(
+                message_blocks.slack_image_option(
+                    generated_image_option.get("text"),
+                    generated_image_option.get("image_url"),
+                    generated_image_option.get("alt_text"),
+                )
+            )
+            slack_message_data.append(
+                message_blocks.slack_image_option_button(
+                    generated_image_option.get("text"),
+                    generated_image_option.get("value"),
+                )
+            )
+    slack_message.send(response_url, slack_message_data)
