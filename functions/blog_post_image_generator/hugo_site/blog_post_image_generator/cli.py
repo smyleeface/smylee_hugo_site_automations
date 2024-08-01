@@ -6,9 +6,10 @@ import os
 
 import boto3
 import click
+from dotenv import load_dotenv
 from github import Github
 
-import hugo_site.blog_post_image_generator.app as app
+from hugo_site.blog_post_image_generator import app
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOGGING_LEVEL", logging.INFO))
@@ -16,10 +17,8 @@ logger.setLevel(os.environ.get("LOGGING_LEVEL", logging.INFO))
 
 @click.command()
 @click.option("--repository-name", required=True, help="The repository name")
-@click.option(
-    "--pull-request-number", required=True, help="The pull request number", type=int
-)
-@click.option("--image-temp-directory", default="tmp", help="The image temp directory")
+@click.option("--pull-request-number", required=True, help="The pull request number", type=int)
+@click.option("--image-temp-directory", default="/tmp", help="The image temp directory")
 @click.option(
     "--model-type",
     default="titan",
@@ -35,6 +34,7 @@ def main(ctx, repository_name, pull_request_number, image_temp_directory, model_
 
 
 if __name__ == "__main__":
+    load_dotenv()
     contexts = {
         "images_bucket_name": os.environ.get("CDN_BUCKET_NAME"),
         "github_client": Github(os.environ.get("GITHUB_TOKEN")),
