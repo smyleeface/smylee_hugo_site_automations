@@ -34,7 +34,11 @@ Expected SNS message format in payload:
 {
   "github": {
     "repository_name": "string",
-    "pull_request_number": number
+    "pull_request_number": number,
+    "branch_name": "string"
+  },
+  "slack": {
+    "response_url": "string"
   }
 }
 ```
@@ -44,3 +48,5 @@ CLI usage:
 ```bash
 python cli.py --repository-name "owner/repo_name" --pull-request-number 13
 ```
+
+> Need to add the PYTHONPATH
