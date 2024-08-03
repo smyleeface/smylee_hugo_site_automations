@@ -12,6 +12,7 @@ BUILD_DATA_PATH=${REPO_ROOT}/infrastructure/build_data
 BUILD_ARTIFACTS_PATH=${REPO_ROOT}/infrastructure/build_artifacts
 UUID=$(uuidgen)
 BUILD_ID=${UUID##*-}
+PYTHON_NAMESPACE="hugo_site"
 SHA=$(git rev-parse --short $(git rev-parse HEAD))
 REPO_NAME=$(basename $(git rev-parse --show-toplevel))
 S3_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='S3::BucketForUploadsUsWest2-Name'].Value" --output text)
@@ -43,7 +44,7 @@ if [ -d "${path_to_functions}" ]; then
 
         # Copy application code to directory
         echo $PWD
-        cp -r hugo_site ${BUILD_ARTIFACTS_PATH}/${function_name}
+        cp -r $PYTHON_NAMESPACE ${BUILD_ARTIFACTS_PATH}/${function_name}
 
         # Change to the build directory
         cd ${BUILD_ARTIFACTS_PATH}/${function_name}

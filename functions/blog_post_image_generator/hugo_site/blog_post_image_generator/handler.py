@@ -9,14 +9,14 @@ from botocore.exceptions import ClientError
 from github import Auth
 from github import GithubIntegration
 
-import hugo_site.blog_post_image_generator.app as app
-import hugo_site.blog_post_image_generator.slack.message as slack_message
-import hugo_site.blog_post_image_generator.slack.message_blocks as message_blocks
+from hugo_site.blog_post_image_generator import app
+from hugo_site.blog_post_image_generator.slack import message as slack_message
+from hugo_site.blog_post_image_generator.slack import message_blocks
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOGGING_LEVEL", logging.INFO))
 
-image_temp_directory = os.getenv("IMAGE_TEMP_DIR", "tmp")
+image_temp_directory = os.getenv("IMAGE_TEMP_DIR", "/tmp")
 os.makedirs(image_temp_directory, exist_ok=True)
 
 model_type = os.getenv("MODEL_TYPE", "titan")  # titan or stability_ai
@@ -53,6 +53,10 @@ sns_client = boto3_session.client(service_name="sns", region_name="us-west-2")
 
 
 def lambda_handler(event, context):
+    """
+    Gets the context data needed to trigger the image generation.
+    Compiles the data into a Slack message and sends to user who sent the request.
+    """
     message_str = event.get("Records", [{}])[0].get("Sns", {}).get("Message", "")
     message = json.loads(json.loads(json.dumps(message_str)))
     repo_name = message.get("github", {}).get("repository_name", "")
@@ -69,6 +73,7 @@ def lambda_handler(event, context):
     generated_images = app.run(
         ctx, repo_name, pull_request_number, image_temp_directory, model_type
     )
+    print(generated_images)
 
     # construct and write message to file
     slack_message_data = message_blocks.slack_app_header(
@@ -77,21 +82,22 @@ def lambda_handler(event, context):
         generated_images.get("repo_name"),
     )
     for generated_image in generated_images.get("posts"):
-        slack_message_data.append(
-            message_blocks.slack_section_header(generated_image.get("title"))
+        slack_message_data["blocks"].extend(
+            message_blocks.slack_section_header(generated_image.get("text"))
         )
-        for generated_image_option in generated_image.get("options"):
-            slack_message_data.append(
+        for generated_image_option in generated_image.get("image_options"):
+            slack_message_data["blocks"].append(
                 message_blocks.slack_image_option(
                     generated_image_option.get("text"),
                     generated_image_option.get("image_url"),
                     generated_image_option.get("alt_text"),
                 )
             )
-            slack_message_data.append(
+            slack_message_data["blocks"].append(
                 message_blocks.slack_image_option_button(
                     generated_image_option.get("text"),
                     generated_image_option.get("value"),
                 )
             )
-    slack_message.send(response_url, slack_message_data)
+    status_code = slack_message.send(response_url, slack_message_data)
+    print(f"Slack message sent with status code: {status_code}")

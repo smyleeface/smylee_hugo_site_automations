@@ -11,22 +11,30 @@ logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOGGING_LEVEL", logging.INFO))
 
 
-def run(ctx, repository_name, pull_request_number, image_temp_directory, model_type):
+def run(
+    ctx: dict,
+    repository_name: str,
+    pull_request_number: str,
+    image_temp_directory: str,
+    model_type: str,
+) -> dict:
+    """
+    Using the repository_name and pull_request_number get the title and description
+    for any posts that do not have a thumbnail image.
+    Use the title and description to generate an image using the bedrock API.
+    Returns the list of images generated for the posts that do not have a thumbnail image.
+    """
     github_client = ctx["github_client"]
     bedrock_client = ctx["bedrock_client"]
     s3_client = ctx["s3_client"]
     images_bucket_name = ctx["images_bucket_name"]
     os.makedirs(image_temp_directory, exist_ok=True)
     repo = github_client.get_repo(repository_name)
-    url_to_pull_request = repo.get_pull(pull_request_number).html_url
     pull_request = repo.get_pull(pull_request_number)
+    url_to_pull_request = pull_request.html_url
     files_changed = pull_request.get_files()
-    filtered_files = [
-        file.filename for file in files_changed if "content/post" in file.filename
-    ]
-    files_with_empty_thumbnail = find.files_with_empty_thumbnail(
-        filtered_files, repo, pull_request
-    )
+    filtered_files = [file.filename for file in files_changed if "content/post" in file.filename]
+    files_with_empty_thumbnail = find.files_with_empty_thumbnail(filtered_files, repo, pull_request)
     pull_request_images = {
         "url_to_pull_request": url_to_pull_request,
         "pull_request_number": pull_request_number,

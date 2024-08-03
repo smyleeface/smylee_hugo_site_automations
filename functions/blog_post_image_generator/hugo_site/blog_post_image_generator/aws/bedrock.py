@@ -1,19 +1,37 @@
 import base64
-from datetime import datetime
 import json
 import os
+from datetime import datetime
 
 
-def generate_image(title, description, filename, bedrock_client, image_temp_directory, model_type, number_of_images=1):
+def generate_image(
+    title,
+    description,
+    filename,
+    bedrock_client,
+    image_temp_directory,
+    model_type,
+    number_of_images=1,
+):
     prompt = f'Use a combination of technology, scenic, and animal imagery where the title and description are:\n\n"{title}"\n"{description}"\n\n.'
     negative_prompt = "avoid using typography or text"
     if model_type == "stability_ai":
         bedrock_image_names = run_stability_ai(
-            prompt, negative_prompt, bedrock_client, filename, image_temp_directory, number_of_images
+            prompt,
+            negative_prompt,
+            bedrock_client,
+            filename,
+            image_temp_directory,
+            number_of_images,
         )
     else:
         bedrock_image_names = run_titan_image_generator(
-            prompt, negative_prompt, bedrock_client, filename, image_temp_directory, number_of_images
+            prompt,
+            negative_prompt,
+            bedrock_client,
+            filename,
+            image_temp_directory,
+            number_of_images,
         )
     return bedrock_image_names
 
@@ -51,10 +69,9 @@ def run_stability_ai(
     image_temp_directory,
     number_of_images=1,
 ):
+    print("Using the Stability AI model")
     input_text = {
-        "text_prompts": [
-            {"text": prompt, "weight": 1, "negativeText": negative_prompt}
-        ],
+        "text_prompts": [{"text": prompt, "weight": 1, "negativeText": negative_prompt}],
         "cfgScale": 8,
         "seed": 0,
         "steps": 50,
@@ -84,6 +101,7 @@ def run_titan_image_generator(
     image_temp_directory,
     number_of_images=1,
 ):
+    print("Using the Titan Image Generator model")
     input_text = {
         "textToImageParams": {"text": prompt, "negativeText": negative_prompt},
         "taskType": "TEXT_IMAGE",
