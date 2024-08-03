@@ -40,6 +40,7 @@ def slack_image_option_button(text, value):
 
 def slack_app_header(url_to_pull_request, pull_request_number, repo_name):
     return {
+        "response_type": "in_channel",
         "blocks": [
             {
                 "type": "header",
@@ -56,5 +57,5 @@ def slack_app_header(url_to_pull_request, pull_request_number, repo_name):
                     "text": f"Choose the images you want to use for *<{url_to_pull_request}|pull request #{str(pull_request_number)}>* in _{repo_name}_",
                 },
             },
-        ]
+        ],
     }
