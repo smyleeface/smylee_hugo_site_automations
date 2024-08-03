@@ -1,6 +1,7 @@
 ## Blog Post Image Generator
 
-For any posts in a pull request that is missing a thumbnail, this script will generate a blog post image using Amazon Bedrock, upload to S3 (CDN bucket), and update the file in the pull request with the path to the image.
+For any posts in a pull request that is missing a thumbnail, this script will generate a blog post image using Amazon
+Bedrock, and upload to S3 (CDN bucket).
 
 I have code for the two models, sending the title and description of the post:
 
@@ -11,7 +12,8 @@ I have code for the two models, sending the title and description of the post:
 
 This will be a lambda function for now, triggered by an SNS topic.
 
-Other apps will have access to write to this SNS topic, so the image generation process can be triggered by multiple sources.
+Other apps will have access to write to this SNS topic, so the image generation process can be triggered by multiple
+sources.
 
 ```mermaid
 sequenceDiagram
@@ -26,10 +28,25 @@ sequenceDiagram
     Lambda-->>GitHub: Update the pull request<br>with a commit that<br>has the updated `thumbnail`
 ```
 
-Processes SNS message with payload:
+Expected SNS message format in payload:
+
 ```json
 {
-  "repository_name": "owner_name/repo_name",
-  "pull_request_number": 11
+  "github": {
+    "repository_name": "string",
+    "pull_request_number": number,
+    "branch_name": "string"
+  },
+  "slack": {
+    "response_url": "string"
+  }
 }
 ```
+
+CLI usage:
+
+```bash
+python cli.py --repository-name "owner/repo_name" --pull-request-number 13
+```
+
+> Need to add the PYTHONPATH
